@@ -1,3 +1,4 @@
+//import libraries
 var express= require('express');
 var app=express();
 var axios= require('axios');
@@ -6,6 +7,9 @@ var path=require('path');
 var bodyParser= require('body-parser');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
+
+
+//setting request headers to avoid CORS error
 app.use(function(req,res,next){
   res.header('Access-Control-Allow-Origin','*');
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
@@ -13,18 +17,26 @@ app.use(function(req,res,next){
   res.setHeader('Access-Control-Allow-Credentials', true);
   next();
 })
+
+// connection with the online mLab database which has the menu of the restaurant, ongoing orders,etc.
 const url='mongodb://sher2629:Ruchik%4026@ds241664.mlab.com:41664/first_db';
 mongoose.connect(url);
 var db=mongoose.connection;
+
+// error in connecting (mostly internet issues)
 db.on('error', function(){
   console.log('Its an error')
 });
 db.once('open', function(){
   console.log("Connected");
 });
+
+//re-establish connnection in  case of connection failures
 db.on('disconnected',function(){
   mongoose.connect(url)
 });
+
+//defining the schema for the table menu in the online database
 const menuSchema = new mongoose.Schema({
   id: Number,
   name: String,
@@ -33,6 +45,8 @@ const menuSchema = new mongoose.Schema({
   price: Number,
   
 });
+
+//defining the schema for the table order in the online database
 const orderSchema = new mongoose.Schema({
   table_no: Number,
   tot_unique: Number,
@@ -41,12 +55,18 @@ const orderSchema = new mongoose.Schema({
   items: [{name: String,
       amt: Number}]
 });
+
+//modelling the schemas into tables
 var menu= mongoose.model('menu', menuSchema, 'menu');
 var order= mongoose.model('order',orderSchema,'orders');
 var waiter= mongoose.model('waiter',orderSchema,'waiter');
 var pending=mongoose.model('pending',orderSchema,'pending');
 
 
+/*
+When the customer scans the QR code, the web page that opens sends a get request to the server.
+The function given below handles the get request and sends the menu of the restaurant in response.
+*/
 app.get('/menu',(req,res)=>{
     menu.find( {} , function(err,result){
     console.log(result);
@@ -56,6 +76,12 @@ app.get('/menu',(req,res)=>{
     res.end(JSON.stringify(objectified)); 
   })
 })
+
+/*
+When the customer after deciding his order clicks on the "Place order" button, it sends a post request to the server.
+The function given below handles the post request and adds the customer's order to the database's ongoing orders table 
+and forwards the order to the chef. 
+*/
 app.post('/process',(req,res)=>{
   console.log(req.body.obj);
   const {table_no, tot_unique, tot_price, comments, items}=req.body.obj;
@@ -73,7 +99,9 @@ app.post('/process',(req,res)=>{
   res.end();
 });
 
+/*
 
+*/
 app.post('/waiter', function(req,res){
   console.log("Inside Waiter: ",req.body.result[0]);
   // req.body.result[0].save({table_no,tot_unique,tot_price, comments, items})
@@ -239,4 +267,6 @@ app.get('/orders',function(req,res){
     res.end(JSON.stringify(objectified)); 
   })
 })
+
+//the server works on port no 4001
 app.listen(4001);
